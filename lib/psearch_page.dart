@@ -68,7 +68,8 @@ class _SearchPageState extends State<SearchPage> {
             .get();
 
         setState(() {
-          _pendingConnections = snapshot.docs.map((doc) => doc['from'] as String).toList();
+          _pendingConnections =
+              snapshot.docs.map((doc) => doc['from'] as String).toList();
         });
       } catch (e) {
         print('Error fetching pending connections: $e');
@@ -83,7 +84,8 @@ class _SearchPageState extends State<SearchPage> {
             .get();
 
         setState(() {
-          _declinedConnections = snapshot.docs.map((doc) => doc['from'] as String).toList();
+          _declinedConnections =
+              snapshot.docs.map((doc) => doc['from'] as String).toList();
         });
       } catch (e) {
         print('Error fetching declined connections: $e');
@@ -97,7 +99,8 @@ class _SearchPageState extends State<SearchPage> {
             .get();
 
         setState(() {
-          _acceptedConnections = snapshot.docs.map((doc) => doc['from'] as String).toList();
+          _acceptedConnections =
+              snapshot.docs.map((doc) => doc['from'] as String).toList();
         });
       } catch (e) {
         print('Error fetching accepted connections: $e');
@@ -142,13 +145,6 @@ class _SearchPageState extends State<SearchPage> {
         await _firestore.collection('pendingConnections').add({
           'from': currentUser.uid,
           'to': userId,
-          'status': 'pending',
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-        await _firestore.collection('pendingConnections').add({
-          'from': userId,
-          'to': currentUser.uid,
           'status': 'pending',
           'timestamp': FieldValue.serverTimestamp(),
         });
@@ -233,67 +229,84 @@ class _SearchPageState extends State<SearchPage> {
             ),
           ),
           const SizedBox(height: 20),
-
           Expanded(
             child: _filteredUsers.isNotEmpty
                 ? ListView.builder(
-              itemCount: _filteredUsers.length,
-              itemBuilder: (context, index) {
-                final user = _filteredUsers[index];
-                bool isPending = _pendingConnections.contains(user['uid']);
-                bool isDeclined = _declinedConnections.contains(user['uid']);
-                bool isConnected = _acceptedConnections.contains(user['uid']);
+                    itemCount: _filteredUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = _filteredUsers[index];
+                      bool isPending =
+                          _pendingConnections.contains(user['uid']);
+                      bool isDeclined =
+                          _declinedConnections.contains(user['uid']);
+                      bool isConnected =
+                          _acceptedConnections.contains(user['uid']);
 
-                return Card(
-                  color: Colors.grey[800],
-                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: ListTile(
-                    title: Text(
-                      '${user['firstName']} ${user['lastName']}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      user['email'],
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    trailing: ElevatedButton(
-                      onPressed: isPending
-                          ? null
-                          : isDeclined
-                          ? () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('You cannot send a connection request again!')),
-                        );
-                      }
-                          : () {
-                        _connectUser(user['uid']);
-                      },
-                      child: Text(
-                        isPending
-                            ? 'Awaiting'
-                            : isDeclined
-                            ? 'Cooldown'
-                            : isConnected
-                            ? 'Connected'
-                            : 'Connect',
-                        style: TextStyle(
-                          color: isPending ? Colors.black : (isDeclined ? Colors.grey : Colors.white),
+                      return Card(
+                        color: Colors.grey[800],
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: ListTile(
+                          title: Text(
+                            '${user['firstName']} ${user['lastName']}',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          subtitle: Text(
+                            user['email'],
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          trailing: ElevatedButton(
+                            onPressed: isPending
+                                ? null
+                                : isDeclined
+                                    ? null
+                                    : isConnected
+                                        ? () {
+                                            // Show Snackbar when already connected
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'You are already connected!')),
+                                            );
+                                          }
+                                        : () {
+                                            _connectUser(user['uid']);
+                                          },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isPending
+                                  ? Colors.yellow
+                                  : (isDeclined
+                                      ? Colors.grey
+                                      : (isConnected
+                                          ? Colors.green
+                                          : const Color.fromRGBO(
+                                              0, 153, 114, 1))),
+                            ),
+                            child: Text(
+                              isPending
+                                  ? 'Awaiting'
+                                  : isDeclined
+                                      ? 'Cooldown'
+                                      : isConnected
+                                          ? 'Connected'
+                                          : 'Connect',
+                              style: TextStyle(
+                                color: isPending
+                                    ? Colors.black
+                                    : (isDeclined ? Colors.grey : Colors.white),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isPending ? Colors.yellow : (isDeclined ? Colors.grey : (isConnected ? Colors.green : const Color.fromRGBO(0, 153, 114, 1))),
-                      ),
+                      );
+                    },
+                  )
+                : const Center(
+                    child: Text(
+                      "No users found",
+                      style: TextStyle(color: Colors.white, fontSize: 24),
                     ),
                   ),
-                );
-              },
-            )
-                : const Center(
-              child: Text(
-                "No users found",
-                style: TextStyle(color: Colors.white, fontSize: 24),
-              ),
-            ),
           ),
         ],
       ),
