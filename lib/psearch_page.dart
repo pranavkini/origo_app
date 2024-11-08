@@ -40,10 +40,8 @@ class _SearchPageState extends State<SearchPage> {
       for (var doc in snapshot.docs) {
         if (doc.id != _currentUserId) {
           users.add({
-            'firstName': doc['firstName'],
-            'lastName': doc['lastName'],
-            'email': doc['email'],
             'uid': doc.id,
+            ...doc.data() as Map<String, dynamic>,
           });
         }
       }
@@ -59,21 +57,8 @@ class _SearchPageState extends State<SearchPage> {
 
   Future<void> _fetchConnections() async {
     if (_currentUserId != null) {
-      // Fetch connections from the 'users' collection
       try {
-        DocumentSnapshot currentUserDoc = await _firestore.collection('users').doc(_currentUserId).get();
-        if (currentUserDoc.exists) {
-          List<dynamic> connections = currentUserDoc['connections'] ?? [];
-          setState(() {
-            _acceptedConnections = List<String>.from(connections);
-          });
-        }
-      } catch (e) {
-        print('Error fetching connections: $e');
-      }
-
-      // Fetch pending connections where the current user is the receiver
-      try {
+        // Fetch pending connections for the current user
         QuerySnapshot snapshot = await _firestore
             .collection('pendingConnections')
             .where('to', isEqualTo: _currentUserId)
@@ -87,8 +72,8 @@ class _SearchPageState extends State<SearchPage> {
         print('Error fetching pending connections: $e');
       }
 
-      // Fetch declined connections where the current user is the receiver
       try {
+        // Fetch declined connections for the current user
         QuerySnapshot snapshot = await _firestore
             .collection('pendingConnections')
             .where('to', isEqualTo: _currentUserId)
@@ -100,6 +85,19 @@ class _SearchPageState extends State<SearchPage> {
         });
       } catch (e) {
         print('Error fetching declined connections: $e');
+      }
+
+      try {
+        // Fetch accepted connections by checking the connections field in 'users'
+        DocumentSnapshot currentUserDoc = await _firestore.collection('users').doc(_currentUserId).get();
+        if (currentUserDoc.exists) {
+          var connections = currentUserDoc['connections'] as List<dynamic>?;
+          setState(() {
+            _acceptedConnections = connections != null ? List<String>.from(connections) : [];
+          });
+        }
+      } catch (e) {
+        print('Error fetching accepted connections: $e');
       }
     }
   }
@@ -137,7 +135,6 @@ class _SearchPageState extends State<SearchPage> {
 
     if (currentUser != null) {
       try {
-        // Add the connection request to the pendingConnections collection for both users
         await _firestore.collection('pendingConnections').add({
           'from': currentUser.uid,
           'to': userId,
@@ -162,134 +159,162 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
-  Future<void> _updateConnectionStatus(String userId, String status) async {
-    User? currentUser = _auth.currentUser;
-
-    if (currentUser != null) {
-      try {
-        // Update the connection status in the pendingConnections collection
-        QuerySnapshot snapshot = await _firestore
-            .collection('pendingConnections')
-            .where('from', isEqualTo: userId)
-            .where('to', isEqualTo: currentUser.uid)
-            .get();
-
-        for (var doc in snapshot.docs) {
-          await doc.reference.update({
-            'status': status,
-          });
-        }
-
-        // Also update the reverse connection status
-        QuerySnapshot reverseSnapshot = await _firestore
-            .collection('pendingConnections')
-            .where('from', isEqualTo: currentUser.uid)
-            .where('to', isEqualTo: userId)
-            .get();
-
-        for (var doc in reverseSnapshot.docs) {
-          await doc.reference.update({
-            'status': status,
-          });
-        }
-
-        // Refresh the connection lists
-        _fetchConnections();
-      } catch (e) {
-        print('Error updating connection status: $e');
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      color: Colors.black,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              onChanged: _filterUsers,
-              decoration: InputDecoration(
-                hintText: 'Search by name...',
-                hintStyle: const TextStyle(color: Colors.grey),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide.none,
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Container(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TextField(
+                onChanged: _filterUsers,
+                decoration: InputDecoration(
+                  hintText: 'Search by name...',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
+            Expanded(
+              child: _filteredUsers.isNotEmpty
+                  ? ListView.builder(
+                      itemCount: _filteredUsers.length,
+                      itemBuilder: (context, index) {
+                        final user = _filteredUsers[index];
+                        bool isPending = _pendingConnections.contains(user['uid']);
+                        bool isDeclined = _declinedConnections.contains(user['uid']);
+                        bool isConnected = _acceptedConnections.contains(user['uid']);
 
-          Expanded(
-            child: _filteredUsers.isNotEmpty
-                ? ListView.builder(
-                    itemCount: _filteredUsers.length,
-                    itemBuilder: (context, index) {
-                      final user = _filteredUsers[index];
-                      bool isPending = _pendingConnections.contains(user['uid']);
-                      bool isDeclined = _declinedConnections.contains(user['uid']);
-                      bool isConnected = _acceptedConnections.contains(user['uid']);
-
-                      return Card(
-                        color: Colors.grey[800],
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: ListTile(
-                          title: Text(
-                            '${user['firstName']} ${user['lastName']}',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          subtitle: Text(
-                            user['email'],
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          trailing: ElevatedButton(
-                            onPressed: isPending
-                                ? null
-                                : isDeclined
-                                    ? () {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('You cannot send a connection request again!')),
-                                        );
-                                      }
-                                    : () {
-                                        _connectUser(user['uid']);
-                                      },
-                            child: Text(
-                              isPending
-                                  ? 'Awaiting'
+                        return Card(
+                          color: Colors.grey[850],
+                          margin: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: ListTile(
+                            title: Text(
+                              '${user['firstName']} ${user['lastName']}',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              user['email'],
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                            trailing: ElevatedButton(
+                              onPressed: isPending
+                                  ? null
                                   : isDeclined
-                                      ? 'Cooldown'
+                                      ? null
                                       : isConnected
-                                          ? 'Connected'
-                                          : 'Connect',
-                              style: TextStyle(
-                                color: isPending
-                                    ? Colors.black
-                                    : (isDeclined ? Colors.grey : Colors.white),
+                                          ? () {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text('You are already connected!')),
+                                              );
+                                            }
+                                          : () {
+                                              _connectUser(user['uid']);
+                                            },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isPending
+                                    ? Colors.yellow
+                                    : (isDeclined
+                                        ? Colors.grey
+                                        : (isConnected ? Colors.green : const Color.fromRGBO(0, 153, 114, 1))),
+                              ),
+                              child: Text(
+                                isPending
+                                    ? 'Awaiting'
+                                    : isDeclined
+                                        ? 'Cooldown'
+                                        : isConnected
+                                            ? 'Connected'
+                                            : 'Connect',
+                                style: TextStyle(
+                                  color: isPending
+                                      ? Colors.black
+                                      : (isDeclined ? Colors.grey : Colors.white),
+                                ),
                               ),
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isPending
-                                  ? Colors.yellow
-                                  : (isDeclined ? Colors.grey : (isConnected ? Colors.green : const Color.fromRGBO(0, 153, 114, 1))),
-                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProfileDetailsPage(user: user),
+                                ),
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    },
-                  )
-                : const Center(
-                    child: Text(
-                      "No users found",
-                      style: TextStyle(color: Colors.white, fontSize: 24),
+                        );
+                      },
+                    )
+                  : const Center(
+                      child: Text(
+                        "No users found",
+                        style: TextStyle(color: Colors.white, fontSize: 24),
+                      ),
                     ),
-                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileDetailsPage extends StatelessWidget {
+  final Map<String, dynamic> user;
+
+  ProfileDetailsPage({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('${user['firstName']} ${user['lastName']}'),
+        backgroundColor: Colors.black,
+      ),
+      backgroundColor: Colors.black,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${user['firstName']} ${user['lastName']}',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            _buildProfileField('Education', user['education']),
+            _buildProfileField('Work Experience', user['workExperience']),
+            _buildProfileField('Skills', user['skills']),
+            _buildProfileField('Email', user['email']),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileField(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value ?? 'Not provided',
+            style: TextStyle(fontSize: 18, color: Colors.white),
           ),
         ],
       ),
