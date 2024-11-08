@@ -69,59 +69,55 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text('Add New Job'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: _jobTitleController,
-                      decoration: InputDecoration(labelText: 'Job Title'),
-                    ),
-                    TextField(
-                      controller: _jobDescriptionController,
-                      decoration: InputDecoration(labelText: 'Job Description'),
-                    ),
-                    TextField(
-                      controller: _jobLocationController,
-                      decoration: InputDecoration(labelText: 'Job Location'),
-                    ),
-                    TextField(
-                      controller: _jobSalaryController,
-                      decoration: InputDecoration(labelText: 'Salary'),
-                    ),
-                    DropdownButton<String>(
-                      value: selectedCategory,
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          selectedCategory = newValue!;
-                        });
-                      },
-                      items: categories.map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                    ),
-                  ],
+        return AlertDialog(
+          title: Text('Add New Job'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _jobTitleController,
+                  decoration: InputDecoration(labelText: 'Job Title'),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Cancel'),
+                TextField(
+                  controller: _jobDescriptionController,
+                  decoration: InputDecoration(labelText: 'Job Description'),
                 ),
-                TextButton(
-                  onPressed: _addJob,
-                  child: Text('Add Job'),
+                TextField(
+                  controller: _jobLocationController,
+                  decoration: InputDecoration(labelText: 'Job Location'),
+                ),
+                TextField(
+                  controller: _jobSalaryController,
+                  decoration: InputDecoration(labelText: 'Salary'),
+                ),
+                DropdownButton<String>(
+                  value: selectedCategory,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      selectedCategory = newValue!;
+                    });
+                  },
+                  items: categories.map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
                 ),
               ],
-            );
-          },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: _addJob,
+              child: Text('Add Job'),
+            ),
+          ],
         );
       },
     );
@@ -135,16 +131,10 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
         title: Text("Job Openings", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(48.0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabs: categories.map((category) => Tab(text: category)).toList(),
-            ),
-          ),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: categories.map((category) => Tab(text: category)).toList(),
         ),
       ),
       body: TabBarView(
