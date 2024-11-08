@@ -7,12 +7,12 @@ import 'package:path/path.dart' as path;
 import 'dart:io';
 
 class AppColors {
-  static const primaryGreen = Color(0xFF1E8B55);
-  static const darkBackground = Color(0xFF000000);
-  static const surfaceDark = Color(0xFF1E1E1E);
-  static const cardDark = Color(0xFF252525);
-  static const textLight = Color(0xFFE0E0E0);
-  static const textDim = Color(0xFFB0B0B0);
+  static const primaryGreen = Color(0xFF2E7D32); // A deeper, more muted green for a sophisticated feel
+  static const darkBackground = Color(0xFF0A0A0A); // A deeper black with a slight warm undertone
+  static const surfaceDark = Color(0xFF2C2C2C); // A darker, more elegant gray surface shade
+  static const cardDark = Color(0xFF333333); // Slightly lighter dark gray with a refined look
+  static const textLight = Color(0xFFC9C9C9); // Softer, light gray that still maintains clarity
+  static const textDim = Color(0xFF8A8A8A); // A more muted, subtle gray for less harsh contrast
 }
 
 class Messaging extends StatefulWidget {

@@ -61,15 +61,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (_currentUserId != null) {
       try {
         // Fetch the user's document
-        DocumentSnapshot userDoc = await _firestore.collection('users').doc(_currentUserId).get();
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(_currentUserId).get();
         if (userDoc.exists) {
           // Get the list of user IDs from the 'connections' field
           List<dynamic> connections = userDoc['connections'] ?? [];
-          
+
           // Fetch details for each connected user
           List<Map<String, dynamic>> connectionsData = [];
           for (var userId in connections) {
-            DocumentSnapshot userSnapshot = await _firestore.collection('users').doc(userId).get();
+            DocumentSnapshot userSnapshot =
+                await _firestore.collection('users').doc(userId).get();
             if (userSnapshot.exists) {
               connectionsData.add({
                 'from': userId,
@@ -114,9 +116,31 @@ class _NotificationsPageState extends State<NotificationsPage> {
     _fetchPendingConnections(); // Refresh the list
   }
 
+  Future<void> _removeConnection(String userIdToRemove) async {
+    if (_currentUserId != null) {
+      try {
+        // Remove the user from the current user's 'connections'
+        await _firestore.collection('users').doc(_currentUserId).update({
+          'connections': FieldValue.arrayRemove([userIdToRemove]),
+        });
+
+        // Remove the current user from the other user's 'connections'
+        await _firestore.collection('users').doc(userIdToRemove).update({
+          'connections': FieldValue.arrayRemove([_currentUserId]),
+        });
+
+        // Refresh the connections list after removal
+        _fetchExistingConnections();
+      } catch (e) {
+        print('Error removing connection: $e');
+      }
+    }
+  }
+
   Future<Map<String, dynamic>?> _fetchUserDetails(String userId) async {
     try {
-      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
       return userDoc.data() as Map<String, dynamic>?;
     } catch (e) {
       print('Error fetching user details: $e');
@@ -155,12 +179,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             return FutureBuilder<Map<String, dynamic>?>(
                               future: _fetchUserDetails(request['from']),
                               builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const Center(child: CircularProgressIndicator());
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
                                 }
 
-                                if (!snapshot.hasData || snapshot.data == null) {
-                                  return const Text('Error loading user details');
+                                if (!snapshot.hasData ||
+                                    snapshot.data == null) {
+                                  return const Text(
+                                      'Error loading user details');
                                 }
 
                                 final userData = snapshot.data!;
@@ -169,30 +197,30 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   child: ListTile(
                                     title: Text(
                                       userData['firstName'] ?? 'Unknown',
-                                      style: const TextStyle(color: Colors.white),
+                                      style:
+                                          const TextStyle(color: Colors.white),
                                     ),
                                     subtitle: Text(
                                       userData['email'] ?? 'No email',
-                                      style: const TextStyle(color: Colors.grey),
+                                      style:
+                                          const TextStyle(color: Colors.grey),
                                     ),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        ElevatedButton(
-                                          onPressed: () =>
-                                              _acceptConnection(request['from'], request['id']),
-                                          child: const Text('Accept'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color.fromRGBO(0, 153, 114, 1),
-                                          ),
+                                        IconButton(
+                                          icon: const Icon(Icons.check_circle,
+                                              size: 30, color: Colors.green),
+                                          onPressed: () => _acceptConnection(
+                                              request['from'], request['id']),
+                                          tooltip: 'Accept',
                                         ),
-                                        const SizedBox(width: 10),
-                                        ElevatedButton(
-                                          onPressed: () => _declineConnection(request['id']),
-                                          child: const Text('Decline'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                          ),
+                                        IconButton(
+                                          icon: const Icon(Icons.remove_circle,
+                                              size: 30, color: Colors.red),
+                                          onPressed: () =>
+                                              _declineConnection(request['id']),
+                                          tooltip: 'Decline',
                                         ),
                                       ],
                                     ),
@@ -234,6 +262,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 subtitle: Text(
                                   userData?['email'] ?? 'No email',
                                   style: const TextStyle(color: Colors.grey),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                      Icons.person_remove_alt_1_rounded,
+                                      color: Colors.red),
+                                  onPressed: () =>
+                                      _removeConnection(connection['from']),
+                                  tooltip: 'Remove connection',
                                 ),
                               ),
                             );
