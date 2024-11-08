@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path/path.dart' as path;
+import 'dart:io';
+
+class AppColors {
+  static const primaryGreen = Color(0xFF1E8B55);
+  static const darkBackground = Color(0xFF000000);
+  static const surfaceDark = Color(0xFF1E1E1E);
+  static const cardDark = Color(0xFF252525);
+  static const textLight = Color(0xFFE0E0E0);
+  static const textDim = Color(0xFFB0B0B0);
+}
 
 class Messaging extends StatefulWidget {
   @override
@@ -32,20 +45,17 @@ class _MessagingState extends State<Messaging> {
   Future<void> _fetchConnections() async {
     if (_currentUserId != null) {
       try {
-        // Get current user's document
         DocumentSnapshot userDoc = await _firestore
             .collection('users')
             .doc(_currentUserId)
             .get();
 
         if (userDoc.exists && userDoc.data() != null) {
-          // Get the connections array
           List<String> connections = List<String>.from(
               (userDoc.data() as Map<String, dynamic>)['connections'] ?? []);
 
           List<Map<String, dynamic>> users = [];
 
-          // Fetch details for each connected user
           for (String userId in connections) {
             DocumentSnapshot connectedUserDoc =
             await _firestore.collection('users').doc(userId).get();
@@ -87,9 +97,14 @@ class _MessagingState extends State<Messaging> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: const Text('Messaging'),
+        backgroundColor: AppColors.surfaceDark,
+        title: const Text(
+          'Messages',
+          style: TextStyle(color: AppColors.textLight),
+        ),
+        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -99,20 +114,34 @@ class _MessagingState extends State<Messaging> {
           itemBuilder: (context, index) {
             final user = _connectedUsers[index];
             return Card(
-              color: Colors.grey[800],
+              color: AppColors.cardDark,
               margin: const EdgeInsets.symmetric(vertical: 8.0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0),
+              ),
               child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 8.0),
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.primaryGreen,
+                  child: Text(
+                    user['firstName'][0].toUpperCase(),
+                    style: const TextStyle(color: AppColors.textLight),
+                  ),
+                ),
                 title: Text(
                   '${user['firstName']} ${user['lastName']}',
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(
+                      color: AppColors.textLight,
+                      fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
                   user['email'],
-                  style: const TextStyle(color: Colors.white70),
+                  style: const TextStyle(color: AppColors.textDim),
                 ),
                 onTap: () {
-                  _openChat(
-                      user['uid'], '${user['firstName']} ${user['lastName']}');
+                  _openChat(user['uid'],
+                      '${user['firstName']} ${user['lastName']}');
                 },
               ),
             );
@@ -121,12 +150,17 @@ class _MessagingState extends State<Messaging> {
             : const Center(
           child: Text(
             "No connections found",
-            style: TextStyle(color: Colors.white, fontSize: 24),
+            style: TextStyle(color: AppColors.textDim, fontSize: 16),
           ),
         ),
       ),
     );
   }
+}
+
+class MessageType {
+  static const text = 'text';
+  static const file = 'file';
 }
 
 class ChatScreen extends StatefulWidget {
@@ -147,9 +181,11 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ScrollController _scrollController = ScrollController();
   late String _currentUserId;
   late String _chatRoomId;
+  bool _isAttaching = false;
 
   @override
   void initState() {
@@ -162,15 +198,15 @@ class _ChatScreenState extends State<ChatScreen> {
     return user1.compareTo(user2) > 0 ? '$user1-$user2' : '$user2-$user1';
   }
 
-  Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+  Future<void> _sendMessage({String type = MessageType.text, String? fileUrl, String? fileName}) async {
+    if (type == MessageType.text && _messageController.text.trim().isEmpty) return;
 
-    String message = _messageController.text.trim();
+    String message = type == MessageType.text ? _messageController.text.trim() : fileName ?? 'File';
     _messageController.clear();
 
     try {
       await _firestore.collection('chatRooms').doc(_chatRoomId).set({
-        'lastMessage': message,
+        'lastMessage': type == MessageType.text ? message : 'Sent a file: $fileName',
         'lastMessageTime': FieldValue.serverTimestamp(),
         'participants': [_currentUserId, widget.peerUserId],
       }, SetOptions(merge: true));
@@ -182,24 +218,67 @@ class _ChatScreenState extends State<ChatScreen> {
           .add({
         'senderId': _currentUserId,
         'message': message,
+        'type': type,
+        'fileUrl': fileUrl,
+        'fileName': fileName,
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+      _scrollToBottom();
     } catch (e) {
       print('Error sending message: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to send message')),
       );
     }
+  }
+
+  Future<void> _attachFile() async {
+    setState(() => _isAttaching = true);
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles();
+
+      if (result != null) {
+        File file = File(result.files.single.path!);
+        String fileName = path.basename(file.path);
+
+        // Upload file to Firebase Storage
+        Reference storageRef = _storage
+            .ref()
+            .child('chat_files')
+            .child(_chatRoomId)
+            .child(DateTime.now().millisecondsSinceEpoch.toString() + '_' + fileName);
+
+        UploadTask uploadTask = storageRef.putFile(file);
+        TaskSnapshot snapshot = await uploadTask;
+        String fileUrl = await snapshot.ref.getDownloadURL();
+
+        await _sendMessage(
+          type: MessageType.file,
+          fileUrl: fileUrl,
+          fileName: fileName,
+        );
+      }
+    } catch (e) {
+      print('Error attaching file: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to attach file')),
+      );
+    } finally {
+      setState(() => _isAttaching = false);
+    }
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Stream<QuerySnapshot> _getChatStream() {
@@ -212,11 +291,86 @@ class _ChatScreenState extends State<ChatScreen> {
         .snapshots();
   }
 
+  Widget _buildMessageBubble(Map<String, dynamic> messageData, bool isMe) {
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(
+          bottom: 8.0,
+          left: isMe ? 64.0 : 8.0,
+          right: isMe ? 8.0 : 64.0,
+        ),
+        padding: const EdgeInsets.symmetric(
+          vertical: 12.0,
+          horizontal: 16.0,
+        ),
+        decoration: BoxDecoration(
+          color: isMe ? AppColors.primaryGreen : AppColors.cardDark,
+          borderRadius: BorderRadius.circular(16.0),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (messageData['type'] == MessageType.file)
+              GestureDetector(
+                onTap: () {
+                  // Handle file opening logic here
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.attachment,
+                      color: isMe ? AppColors.textLight : AppColors.textDim,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        messageData['fileName'] ?? 'File',
+                        style: TextStyle(
+                          color: isMe ? AppColors.textLight : AppColors.textDim,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Text(
+                messageData['message'] ?? '',
+                style: TextStyle(
+                  color: isMe ? AppColors.textLight : AppColors.textLight,
+                  fontSize: 16.0,
+                ),
+              ),
+            const SizedBox(height: 4),
+            Text(
+              _formatTimestamp(messageData['timestamp'] as Timestamp),
+              style: TextStyle(
+                color: (isMe ? AppColors.textLight : AppColors.textDim)
+                    .withOpacity(0.7),
+                fontSize: 12.0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: Text(widget.peerUserName),
+        backgroundColor: AppColors.surfaceDark,
+        title: Text(
+          widget.peerUserName,
+          style: const TextStyle(color: AppColors.textLight),
+        ),
+        elevation: 0,
       ),
       body: Column(
         children: [
@@ -225,11 +379,21 @@ class _ChatScreenState extends State<ChatScreen> {
               stream: _getChatStream(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                    child: Text(
+                      'Error: ${snapshot.error}',
+                      style: const TextStyle(color: AppColors.textDim),
+                    ),
+                  );
                 }
 
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor:
+                      AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+                    ),
+                  );
                 }
 
                 var messages = snapshot.data!.docs;
@@ -237,80 +401,63 @@ class _ChatScreenState extends State<ChatScreen> {
                 return ListView.builder(
                   controller: _scrollController,
                   reverse: true,
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(16.0),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    var messageData = messages[index].data() as Map<String, dynamic>;
+                    var messageData =
+                    messages[index].data() as Map<String, dynamic>;
                     bool isMe = messageData['senderId'] == _currentUserId;
-
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(
-                          vertical: 4.0,
-                          horizontal: 8.0,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10.0,
-                          horizontal: 14.0,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.blue[700] : Colors.grey[800],
-                          borderRadius: BorderRadius.circular(20.0),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              messageData['message'] ?? '',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16.0,
-                              ),
-                            ),
-                            if (messageData['timestamp'] != null)
-                              Text(
-                                _formatTimestamp(messageData['timestamp'] as Timestamp),
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
-                                  fontSize: 12.0,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
+                    return _buildMessageBubble(messageData, isMe);
                   },
                 );
               },
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(30.0),
-            ),
-            margin: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            color: AppColors.surfaceDark,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.attachment,
+                      color: _isAttaching
+                          ? AppColors.primaryGreen
+                          : AppColors.textDim,
                     ),
-                    onSubmitted: (_) => _sendMessage(),
+                    onPressed: _isAttaching ? null : _attachFile,
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  color: Colors.blue,
-                  onPressed: _sendMessage,
-                ),
-              ],
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.cardDark,
+                        borderRadius: BorderRadius.circular(24.0),
+                      ),
+                      child: TextField(
+                        controller: _messageController,
+                        style: const TextStyle(color: AppColors.textLight),
+                        decoration: const InputDecoration(
+                          hintText: 'Type a message...',
+                          hintStyle: TextStyle(color: AppColors.textDim),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 12.0,
+                          ),
+                        ),
+                        onSubmitted: (_) =>
+                            _sendMessage(type: MessageType.text),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.send),
+                    color: AppColors.primaryGreen,
+                    onPressed: () => _sendMessage(type: MessageType.text),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
