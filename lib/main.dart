@@ -9,7 +9,7 @@ void main() async {
   await Firebase.initializeApp();
   runApp(const MyApp());
 }
-// bam bholle
+// bam bhole
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
