@@ -107,7 +107,10 @@ class _JobsPageState extends State<JobsPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text('Job Openings'),
+        title: Text(
+          "Job Openings",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -173,7 +176,6 @@ class _JobsPageState extends State<JobsPage> {
     );
   }
 }
-
 class JobDetailsPage extends StatelessWidget {
   final Map<String, dynamic> job;
 
