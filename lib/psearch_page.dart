@@ -59,7 +59,20 @@ class _SearchPageState extends State<SearchPage> {
 
   Future<void> _fetchConnections() async {
     if (_currentUserId != null) {
-      // Fetch pending connections sent to the current user
+      // Fetch connections from the 'users' collection
+      try {
+        DocumentSnapshot currentUserDoc = await _firestore.collection('users').doc(_currentUserId).get();
+        if (currentUserDoc.exists) {
+          List<dynamic> connections = currentUserDoc['connections'] ?? [];
+          setState(() {
+            _acceptedConnections = List<String>.from(connections);
+          });
+        }
+      } catch (e) {
+        print('Error fetching connections: $e');
+      }
+
+      // Fetch pending connections where the current user is the receiver
       try {
         QuerySnapshot snapshot = await _firestore
             .collection('pendingConnections')
@@ -68,14 +81,13 @@ class _SearchPageState extends State<SearchPage> {
             .get();
 
         setState(() {
-          _pendingConnections =
-              snapshot.docs.map((doc) => doc['from'] as String).toList();
+          _pendingConnections = snapshot.docs.map((doc) => doc['from'] as String).toList();
         });
       } catch (e) {
         print('Error fetching pending connections: $e');
       }
 
-      // Fetch declined connections sent to the current user
+      // Fetch declined connections where the current user is the receiver
       try {
         QuerySnapshot snapshot = await _firestore
             .collection('pendingConnections')
@@ -84,26 +96,10 @@ class _SearchPageState extends State<SearchPage> {
             .get();
 
         setState(() {
-          _declinedConnections =
-              snapshot.docs.map((doc) => doc['from'] as String).toList();
+          _declinedConnections = snapshot.docs.map((doc) => doc['from'] as String).toList();
         });
       } catch (e) {
         print('Error fetching declined connections: $e');
-      }
-
-      // Fetch accepted connections where the current user is either the sender or receiver
-      try {
-        QuerySnapshot snapshot = await _firestore
-            .collection('connections')
-            .where('to', isEqualTo: _currentUserId)
-            .get();
-
-        setState(() {
-          _acceptedConnections =
-              snapshot.docs.map((doc) => doc['from'] as String).toList();
-        });
-      } catch (e) {
-        print('Error fetching accepted connections: $e');
       }
     }
   }
@@ -229,18 +225,16 @@ class _SearchPageState extends State<SearchPage> {
             ),
           ),
           const SizedBox(height: 20),
+
           Expanded(
             child: _filteredUsers.isNotEmpty
                 ? ListView.builder(
                     itemCount: _filteredUsers.length,
                     itemBuilder: (context, index) {
                       final user = _filteredUsers[index];
-                      bool isPending =
-                          _pendingConnections.contains(user['uid']);
-                      bool isDeclined =
-                          _declinedConnections.contains(user['uid']);
-                      bool isConnected =
-                          _acceptedConnections.contains(user['uid']);
+                      bool isPending = _pendingConnections.contains(user['uid']);
+                      bool isDeclined = _declinedConnections.contains(user['uid']);
+                      bool isConnected = _acceptedConnections.contains(user['uid']);
 
                       return Card(
                         color: Colors.grey[800],
@@ -258,30 +252,14 @@ class _SearchPageState extends State<SearchPage> {
                             onPressed: isPending
                                 ? null
                                 : isDeclined
-                                    ? null
-                                    : isConnected
-                                        ? () {
-                                            // Show Snackbar when already connected
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              SnackBar(
-                                                  content: Text(
-                                                      'You are already connected!')),
-                                            );
-                                          }
-                                        : () {
-                                            _connectUser(user['uid']);
-                                          },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isPending
-                                  ? Colors.yellow
-                                  : (isDeclined
-                                      ? Colors.grey
-                                      : (isConnected
-                                          ? Colors.green
-                                          : const Color.fromRGBO(
-                                              0, 153, 114, 1))),
-                            ),
+                                    ? () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('You cannot send a connection request again!')),
+                                        );
+                                      }
+                                    : () {
+                                        _connectUser(user['uid']);
+                                      },
                             child: Text(
                               isPending
                                   ? 'Awaiting'
@@ -295,6 +273,11 @@ class _SearchPageState extends State<SearchPage> {
                                     ? Colors.black
                                     : (isDeclined ? Colors.grey : Colors.white),
                               ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isPending
+                                  ? Colors.yellow
+                                  : (isDeclined ? Colors.grey : (isConnected ? Colors.green : const Color.fromRGBO(0, 153, 114, 1))),
                             ),
                           ),
                         ),
