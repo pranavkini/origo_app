@@ -11,7 +11,7 @@ void main() async {
   await Firebase.initializeApp();
   runApp(const MyApp());
 }
-
+//lag gye
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
