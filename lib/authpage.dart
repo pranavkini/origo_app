@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:origo/home_page.dart';
 import 'package:origo/main.dart';
 
+import 'loginpage.dart';
+
 class AuthPage extends StatelessWidget {
   const AuthPage({super.key});
 
