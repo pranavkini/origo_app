@@ -24,7 +24,12 @@ class _JobsPageState extends State<JobsPage> {
   Future<void> _fetchJobs() async {
     QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('jobs').get();
     setState(() {
-      jobListings = snapshot.docs.map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>}).toList();
+      jobListings = snapshot.docs.map((doc) {
+        Map<String, dynamic> jobData = {'id': doc.id, ...doc.data() as Map<String, dynamic>};
+        jobData['hasApplied'] = (jobData['applicants'] ?? []).contains(userId);
+        jobData['applicantCount'] = (jobData['applicants'] ?? []).length;
+        return jobData;
+      }).toList();
     });
   }
 
@@ -97,32 +102,6 @@ class _JobsPageState extends State<JobsPage> {
     );
   }
 
-  void _showApplicants(String jobId) async {
-    DocumentSnapshot jobDoc = await FirebaseFirestore.instance.collection('jobs').doc(jobId).get();
-    List<dynamic> applicants = jobDoc['applicants'] ?? [];
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Applicants'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: applicants.isNotEmpty
-                ? applicants.map((applicant) => Text(applicant)).toList()
-                : [Text('No applicants yet.')],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -150,31 +129,92 @@ class _JobsPageState extends State<JobsPage> {
   }
 
   Widget _buildJobCard(Map<String, dynamic> job) {
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      color: Colors.grey[800],
-      child: Padding(
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => JobDetailsPage(job: job),
+          ),
+        );
+      },
+      child: Card(
+        margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        color: Colors.grey[800],
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                job['title'] ?? 'Title',
+                style: TextStyle(color: Colors.white70),
+              ),
+              SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: job['hasApplied'] ? null : () => _applyForJob(job['id']),
+                    child: Text(
+                      job['hasApplied'] ? 'Applied' : 'Apply',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  Text(
+                    '${job['applicantCount']} Applicants',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class JobDetailsPage extends StatelessWidget {
+  final Map<String, dynamic> job;
+
+  JobDetailsPage({required this.job});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(job['title'] ?? 'Job Details'),
+        backgroundColor: Colors.black,
+      ),
+      backgroundColor: Colors.black,
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              job['description'] ?? 'Job Description',
-              style: TextStyle(color: Colors.white70),
+              job['title'] ?? 'Job Title',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Description: ${job['description'] ?? 'No Description'}',
+              style: TextStyle(fontSize: 16, color: Colors.white70),
             ),
             SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () => _applyForJob(job['id']),
-                  child: Text('Apply', style: TextStyle(color: Colors.white)),
-                ),
-                TextButton(
-                  onPressed: () => _showApplicants(job['id']),
-                  child: Text('View Applicants', style: TextStyle(color: Colors.white)),
-                ),
-              ],
+            Text(
+              'Location: ${job['location'] ?? 'Unknown Location'}',
+              style: TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Salary: ${job['salary'] ?? 'Not specified'}',
+              style: TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+            SizedBox(height: 16),
+            Text(
+              '${job['applicantCount']} Applicants',
+              style: TextStyle(fontSize: 16, color: Colors.white70),
             ),
           ],
         ),
