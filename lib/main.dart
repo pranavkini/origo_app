@@ -5,6 +5,7 @@ import 'package:origo/authpage.dart';
 import 'package:origo/sign_up.dart';
 import 'package:origo/util/mybutton.dart';
 import 'package:origo/home_page.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -18,10 +19,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: 'Job Portal',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2E7D32),  // Forest Green
+          brightness: Brightness.dark,
+        ),
         useMaterial3: true,
+        fontFamily: 'Roboto',
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.white),
+          bodyMedium: TextStyle(color: Colors.white),
+        ),
       ),
       home: AuthPage(),
     );
@@ -49,12 +58,9 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
-        // Navigate to Home Page on successful sign-in
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => HomePage(),
-          ),
+          MaterialPageRoute(builder: (context) => HomePage()),
         );
       } on FirebaseAuthException catch (e) {
         setState(() {
@@ -65,112 +71,78 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20.0),
-                    child: Image.asset(
+      body: Container(
+        decoration: BoxDecoration(
+          color: Colors.black,
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Larger Logo without animation
+
+                    // Increased size
+                    Image.asset(
                       'lib/images/logo.png',
-                      height: 200, // Adjusted for smaller screens
-                      width: 200,
+                      height: 300,
+                      width: 300,
                     ),
-                  ),
-                  // Email TextField
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      hintText: 'Email',
-                      prefixIcon: const Icon(Icons.email, color: Colors.white),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.1),
+
+                    SizedBox(height: 10),  // Increased spacing
+                    // Email TextField
+                    _buildTextField(
+                      controller: _emailController,
+                      icon: Icons.email_outlined,  // More subtle icon
+                      hint: 'Email',
+                      isPassword: false,
                     ),
-                    style: const TextStyle(color: Colors.white),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20.0),
-                  // Password TextField
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      hintText: 'Password',
-                      prefixIcon: const Icon(Icons.lock, color: Colors.white),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.1),
+                    SizedBox(height: 20),
+                    // Password TextField
+                    _buildTextField(
+                      controller: _passwordController,
+                      icon: Icons.lock_outline,  // More subtle icon
+                      hint: 'Password',
+                      isPassword: true,
                     ),
-                    style: const TextStyle(color: Colors.white),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 10.0),
-                  // Error message display
-                  if (_errorMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _errorMessage,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  // Login Button using MyButton
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 30.0),
-                    child: MyButton(
-                      text: 'Log In',
-                      onTap: _signIn,
-                    ),
-                  ),
-                  // Register Text
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "Not a member?",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: () {
-                          // Navigate to Sign Up Page
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SignUpPage(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Register Now',
+                    SizedBox(height: 10),
+                    // Error message
+                    if (_errorMessage.isNotEmpty)
+                      Container(
+                        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _errorMessage,
                           style: TextStyle(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.bold,
+                            color: Colors.red[200],
+                            fontSize: 14,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    SizedBox(height: 30),
+                    // Login Button
+                    _buildLoginButton(),
+                    SizedBox(height: 30),
+                    // Register Link
+                    _buildRegisterLink(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -178,6 +150,112 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required IconData icon,
+    required String hint,
+    required bool isPassword,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.03),  // Very subtle background
+        borderRadius: BorderRadius.circular(12),  // Slightly less rounded
+        border: Border.all(
+          color: Color(0xFF2E7D32).withOpacity(0.2),  // Subtle forest green border
+          width: 1,
+        ),
+      ),
+      child: TextFormField(
+        controller: controller,
+        obscureText: isPassword,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+        ),
+        decoration: InputDecoration(
+          prefixIcon: Icon(
+            icon,
+            color: Color(0xFF2E7D32).withOpacity(0.7),  // Subtle forest green icon
+          ),
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: Colors.white38,  // More subtle hint text
+            fontSize: 16,
+          ),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Please enter your ${hint.toLowerCase()}';
+          }
+          if (hint == 'Email' && !value.contains('@')) {
+            return 'Please enter a valid email address';
+          }
+          if (hint == 'Password' && value.length < 6) {
+            return 'Password must be at least 6 characters';
+          }
+          return null;
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return Container(
+      width: double.infinity,
+      height: 55,
+      child: ElevatedButton(
+        onPressed: _signIn,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Color(0xFF2E7D32),  // Forest green
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),  // Slightly less rounded
+          ),
+          elevation: 0,  // No shadow for a cleaner look
+        ),
+        child: Text(
+          'Sign In',  // More professional text
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w500,  // Slightly less bold
+            letterSpacing: 0.5,  // Subtle letter spacing
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegisterLink() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          "Don't have an account?",  // More professional text
+          style: TextStyle(
+            color: Colors.white54,
+            fontSize: 15,
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => SignUpPage()),
+            );
+          },
+          child: Text(
+            'Create Account',  // More professional text
+            style: TextStyle(
+              color: Color(0xFF2E7D32),  // Forest green
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
-
-
