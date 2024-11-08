@@ -291,7 +291,10 @@ class _ChatScreenState extends State<ChatScreen> {
         .snapshots();
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> messageData, bool isMe) {
+  Widget _buildMessageBubble(DocumentSnapshot message, bool isMe) {
+    final messageData = message.data() as Map<String, dynamic>;
+    final timestamp = messageData['timestamp'] as Timestamp?;
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -346,14 +349,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             const SizedBox(height: 4),
-            Text(
-              _formatTimestamp(messageData['timestamp'] as Timestamp),
-              style: TextStyle(
-                color: (isMe ? AppColors.textLight : AppColors.textDim)
-                    .withOpacity(0.7),
-                fontSize: 12.0,
+            if (timestamp != null)
+              Text(
+                _formatTimestamp(timestamp),
+                style: TextStyle(
+                  color: (isMe ? AppColors.textLight : AppColors.textDim)
+                      .withOpacity(0.7),
+                  fontSize: 12.0,
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -404,10 +408,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: const EdgeInsets.all(16.0),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    var messageData =
-                    messages[index].data() as Map<String, dynamic>;
+                    var message = messages[index];
+                    var messageData = message.data() as Map<String, dynamic>;
                     bool isMe = messageData['senderId'] == _currentUserId;
-                    return _buildMessageBubble(messageData, isMe);
+                    return _buildMessageBubble(message, isMe);
                   },
                 );
               },
