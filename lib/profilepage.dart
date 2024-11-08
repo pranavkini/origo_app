@@ -163,6 +163,14 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                                 letterSpacing: 1.2,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _email ?? 'Email not provided',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: AppColors.textDim,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -181,9 +189,6 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   List<Widget> _buildProfileSections() {
     return [
-      _buildEditableField('firstName', 'First Name', _firstName),
-      _buildEditableField('lastName', 'Last Name', _lastName),
-      _buildEditableField('email', 'Email', _email),
       _buildEditableField('education', 'Education', _education),
       _buildEditableField('workExperience', 'Work Experience', _workExperience),
       _buildEditableField('skills', 'Skills', _skills),
