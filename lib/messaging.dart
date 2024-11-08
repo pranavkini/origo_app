@@ -32,43 +32,40 @@ class _MessagingState extends State<Messaging> {
   Future<void> _fetchConnections() async {
     if (_currentUserId != null) {
       try {
-        QuerySnapshot fromConnections = await _firestore
-            .collection('connections')
-            .where('from', isEqualTo: _currentUserId)
-            .where('status', isEqualTo: 'accepted')
+        // Get current user's document
+        DocumentSnapshot userDoc = await _firestore
+            .collection('users')
+            .doc(_currentUserId)
             .get();
 
-        QuerySnapshot toConnections = await _firestore
-            .collection('connections')
-            .where('to', isEqualTo: _currentUserId)
-            .where('status', isEqualTo: 'accepted')
-            .get();
+        if (userDoc.exists && userDoc.data() != null) {
+          // Get the connections array
+          List<String> connections = List<String>.from(
+              (userDoc.data() as Map<String, dynamic>)['connections'] ?? []);
 
-        List<Map<String, dynamic>> connections = [
-          ...fromConnections.docs.map((doc) => {
-            'uid': doc['to'],
-          }),
-          ...toConnections.docs.map((doc) => {
-            'uid': doc['from'],
-          }),
-        ];
+          List<Map<String, dynamic>> users = [];
 
-        for (var connection in connections) {
-          DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(connection['uid']).get();
+          // Fetch details for each connected user
+          for (String userId in connections) {
+            DocumentSnapshot connectedUserDoc =
+            await _firestore.collection('users').doc(userId).get();
 
-          if (userDoc.exists) {
-            connection.addAll({
-              'firstName': userDoc['firstName'],
-              'lastName': userDoc['lastName'],
-              'email': userDoc['email'],
-            });
+            if (connectedUserDoc.exists && connectedUserDoc.data() != null) {
+              Map<String, dynamic> userData =
+              connectedUserDoc.data() as Map<String, dynamic>;
+              users.add({
+                'uid': userId,
+                'firstName': userData['firstName'] ?? '',
+                'lastName': userData['lastName'] ?? '',
+                'email': userData['email'] ?? '',
+              });
+            }
           }
-        }
 
-        setState(() {
-          _connectedUsers = connections;
-        });
+          setState(() {
+            _connectedUsers = users;
+          });
+        }
       } catch (e) {
         print('Error fetching connections: $e');
       }
@@ -162,7 +159,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   String _getChatRoomId(String user1, String user2) {
-    // Create a consistent chat room ID regardless of who initiated the chat
     return user1.compareTo(user2) > 0 ? '$user1-$user2' : '$user2-$user1';
   }
 
@@ -189,7 +185,6 @@ class _ChatScreenState extends State<ChatScreen> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      // Scroll to bottom after sending message
       Future.delayed(const Duration(milliseconds: 100), () {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
