@@ -58,7 +58,7 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> _fetchConnections() async {
     if (_currentUserId != null) {
       try {
-        // Fetch pending connections for the current user
+        // Check if there are pending connections where the current user is the receiver (to == _currentUserId)
         QuerySnapshot snapshot = await _firestore
             .collection('pendingConnections')
             .where('to', isEqualTo: _currentUserId)
@@ -69,7 +69,22 @@ class _SearchPageState extends State<SearchPage> {
           _pendingConnections = snapshot.docs.map((doc) => doc['from'] as String).toList();
         });
       } catch (e) {
-        print('Error fetching pending connections: $e');
+        print('Error fetching pending connections as receiver: $e');
+      }
+
+      try {
+        // Check if there are pending connections where the current user is the sender (from == _currentUserId)
+        QuerySnapshot snapshot = await _firestore
+            .collection('pendingConnections')
+            .where('from', isEqualTo: _currentUserId)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        setState(() {
+          _pendingConnections.addAll(snapshot.docs.map((doc) => doc['to'] as String).toList());
+        });
+      } catch (e) {
+        print('Error fetching pending connections as sender: $e');
       }
 
       try {
@@ -213,9 +228,8 @@ class _SearchPageState extends State<SearchPage> {
                                       ? null
                                       : isConnected
                                           ? () {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('You are already connected!')),
-                                              );
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(SnackBar(content: Text('You are already connected!')));
                                             }
                                           : () {
                                               _connectUser(user['uid']);
@@ -236,9 +250,7 @@ class _SearchPageState extends State<SearchPage> {
                                             ? 'Connected'
                                             : 'Connect',
                                 style: TextStyle(
-                                  color: isPending
-                                      ? Colors.black
-                                      : (isDeclined ? Colors.grey : Colors.white),
+                                  color: isPending ? Colors.black : (isDeclined ? Colors.grey : Colors.white),
                                 ),
                               ),
                             ),
