@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:origo/authpage.dart';
 import 'package:origo/sign_up.dart';
 import 'package:origo/util/mybutton.dart';
 import 'package:origo/home_page.dart';
@@ -9,7 +10,7 @@ void main() async {
   await Firebase.initializeApp();
   runApp(const MyApp());
 }
-// sex
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -22,28 +23,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const AuthWrapper(),
-    );
-  }
-}
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasData) {
-          // User is logged in, go to HomePage
-          return HomePage();  // No const here since it's a StatefulWidget
-        }
-        // User is not logged in, go to LoginScreen
-        return const LoginScreen();
-      },
+      home: AuthPage(),
     );
   }
 }

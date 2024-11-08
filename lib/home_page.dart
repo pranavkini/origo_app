@@ -32,7 +32,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 2; // Default to ProfilePage (index 2)
   String? _firstName; // Store the first name of the user
-  final String userId = FirebaseAuth.instance.currentUser?.uid ?? ''; // Get the user ID dynamically
+  final String userId = FirebaseAuth.instance.currentUser?.uid ??
+      ''; // Get the user ID dynamically
 
   // Define the pages for each tab in the bottom navigation bar
   List<Widget> _pages = []; // Initialize as empty
@@ -44,7 +45,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _getUserName() async {
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    DocumentSnapshot userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
     if (userDoc.exists) {
       setState(() {
@@ -88,8 +90,17 @@ class _HomePageState extends State<HomePage> {
         toolbarHeight: 50,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+            onPressed: () {
+              FirebaseAuth.instance.signOut();
+            },
+            icon: Icon(Icons.logout, color: const Color.fromRGBO(0, 153, 114, 1) ,)),
       ),
-      body: _pages.isNotEmpty ? _pages[_selectedIndex] : Center(child: CircularProgressIndicator()), // Show loading indicator while pages are being initialized
+      body: _pages.isNotEmpty
+          ? _pages[_selectedIndex]
+          : Center(
+              child:
+                  CircularProgressIndicator()), // Show loading indicator while pages are being initialized
       bottomNavigationBar: Container(
         padding: EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
@@ -119,10 +130,14 @@ class _HomePageState extends State<HomePage> {
             });
           },
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Jobs'), // Change label to 'Jobs' and update the icon
+            BottomNavigationBarItem(
+                icon: Icon(Icons.work),
+                label: 'Jobs'), // Change label to 'Jobs' and update the icon
             BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
-            BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: 'Alerts'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline), label: 'Profile'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.notifications_none), label: 'Alerts'),
             BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Chat'),
           ],
         ),
