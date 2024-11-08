@@ -7,17 +7,21 @@ class JobsPage extends StatefulWidget {
   _JobsPageState createState() => _JobsPageState();
 }
 
-class _JobsPageState extends State<JobsPage> {
+class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin {
   final TextEditingController _jobTitleController = TextEditingController();
   final TextEditingController _jobDescriptionController = TextEditingController();
   final TextEditingController _jobLocationController = TextEditingController();
   final TextEditingController _jobSalaryController = TextEditingController();
   final String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final List<String> categories = ['IT', 'Sales', 'Marketing', 'Engineering', 'Government'];
+  String selectedCategory = 'IT';
   List<Map<String, dynamic>> jobListings = [];
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: categories.length, vsync: this);
     _fetchJobs();
   }
 
@@ -40,63 +44,84 @@ class _JobsPageState extends State<JobsPage> {
         'description': _jobDescriptionController.text,
         'location': _jobLocationController.text,
         'salary': _jobSalaryController.text,
+        'category': selectedCategory,
         'createdBy': userId,
         'createdAt': FieldValue.serverTimestamp(),
-        'applicants': [], // List to hold applicants
+        'applicants': [],
       });
       _jobTitleController.clear();
       _jobDescriptionController.clear();
       _jobLocationController.clear();
       _jobSalaryController.clear();
-      _fetchJobs(); // Refresh job listings after adding a new job
-      Navigator.of(context).pop(); // Close the dialog
+      _fetchJobs();
+      Navigator.of(context).pop();
     }
   }
 
   Future<void> _applyForJob(String jobId) async {
     await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
-      'applicants': FieldValue.arrayUnion([userId]), // Add the current user to the applicants list
+      'applicants': FieldValue.arrayUnion([userId]),
     });
-    _fetchJobs(); // Refresh job listings after applying
+    _fetchJobs();
   }
 
   void _showAddJobDialog() {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('Add New Job'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _jobTitleController,
-                decoration: InputDecoration(labelText: 'Job Title'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Add New Job'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: _jobTitleController,
+                      decoration: InputDecoration(labelText: 'Job Title'),
+                    ),
+                    TextField(
+                      controller: _jobDescriptionController,
+                      decoration: InputDecoration(labelText: 'Job Description'),
+                    ),
+                    TextField(
+                      controller: _jobLocationController,
+                      decoration: InputDecoration(labelText: 'Job Location'),
+                    ),
+                    TextField(
+                      controller: _jobSalaryController,
+                      decoration: InputDecoration(labelText: 'Salary'),
+                    ),
+                    DropdownButton<String>(
+                      value: selectedCategory,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedCategory = newValue!;
+                        });
+                      },
+                      items: categories.map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
               ),
-              TextField(
-                controller: _jobDescriptionController,
-                decoration: InputDecoration(labelText: 'Job Description'),
-              ),
-              TextField(
-                controller: _jobLocationController,
-                decoration: InputDecoration(labelText: 'Job Location'),
-              ),
-              TextField(
-                controller: _jobSalaryController,
-                decoration: InputDecoration(labelText: 'Salary'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: _addJob,
-              child: Text('Add Job'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: _addJob,
+                  child: Text('Add Job'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -107,22 +132,36 @@ class _JobsPageState extends State<JobsPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(
-          "Job Openings",
-          style: TextStyle(color: Colors.white),
-        ),
+        title: Text("Job Openings", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(48.0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabs: categories.map((category) => Tab(text: category)).toList(),
+            ),
+          ),
+        ),
       ),
-      body: jobListings.isNotEmpty
-          ? ListView.builder(
-        itemCount: jobListings.length,
-        itemBuilder: (context, index) {
-          final job = jobListings[index];
-          return _buildJobCard(job);
-        },
-      )
-          : Center(child: CircularProgressIndicator()),
+      body: TabBarView(
+        controller: _tabController,
+        children: categories.map((category) {
+          List<Map<String, dynamic>> filteredJobs = jobListings.where((job) => job['category'] == category).toList();
+          return filteredJobs.isNotEmpty
+              ? ListView.builder(
+            itemCount: filteredJobs.length,
+            itemBuilder: (context, index) {
+              final job = filteredJobs[index];
+              return _buildJobCard(job);
+            },
+          )
+              : Center(child: Text("No jobs in $category", style: TextStyle(color: Colors.white70)));
+        }).toList(),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddJobDialog,
         child: Icon(Icons.add),
@@ -148,25 +187,16 @@ class _JobsPageState extends State<JobsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                job['title'] ?? 'Title',
-                style: TextStyle(color: Colors.white70),
-              ),
+              Text(job['title'] ?? 'Title', style: TextStyle(color: Colors.white70)),
               SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton(
                     onPressed: job['hasApplied'] ? null : () => _applyForJob(job['id']),
-                    child: Text(
-                      job['hasApplied'] ? 'Applied' : 'Apply',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    child: Text(job['hasApplied'] ? 'Applied' : 'Apply', style: TextStyle(color: Colors.white)),
                   ),
-                  Text(
-                    '${job['applicantCount']} Applicants',
-                    style: TextStyle(color: Colors.white70),
-                  ),
+                  Text('${job['applicantCount']} Applicants', style: TextStyle(color: Colors.white70)),
                 ],
               ),
             ],
@@ -176,6 +206,7 @@ class _JobsPageState extends State<JobsPage> {
     );
   }
 }
+
 class JobDetailsPage extends StatelessWidget {
   final Map<String, dynamic> job;
 
@@ -214,10 +245,7 @@ class JobDetailsPage extends StatelessWidget {
               style: TextStyle(fontSize: 16, color: Colors.white70),
             ),
             SizedBox(height: 16),
-            Text(
-              '${job['applicantCount']} Applicants',
-              style: TextStyle(fontSize: 16, color: Colors.white70),
-            ),
+            Text('${job['applicantCount']} Applicants', style: TextStyle(fontSize: 16, color: Colors.white70)),
           ],
         ),
       ),
