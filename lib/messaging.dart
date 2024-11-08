@@ -7,7 +7,7 @@ import 'package:path/path.dart' as path;
 import 'dart:io';
 
 class AppColors {
-  static const primaryGreen = Color(0xFF1D6A47); // A deeper, more muted green for a sophisticated feel
+  static const primaryGreen = Color(0xFF2E7D32); // A deeper, more muted green for a sophisticated feel
   static const darkBackground = Color(0xFF0A0A0A); // A deeper black with a slight warm undertone
   static const surfaceDark = Color(0xFF2C2C2C); // A darker, more elegant gray surface shade
   static const cardDark = Color(0xFF333333); // Slightly lighter dark gray with a refined look
