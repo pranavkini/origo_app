@@ -58,7 +58,7 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> _fetchConnections() async {
     if (_currentUserId != null) {
       try {
-        // Check if there are pending connections where the current user is the receiver (to == _currentUserId)
+        // Fetch pending connections
         QuerySnapshot snapshot = await _firestore
             .collection('pendingConnections')
             .where('to', isEqualTo: _currentUserId)
@@ -66,14 +66,15 @@ class _SearchPageState extends State<SearchPage> {
             .get();
 
         setState(() {
-          _pendingConnections = snapshot.docs.map((doc) => doc['from'] as String).toList();
+          _pendingConnections =
+              snapshot.docs.map((doc) => doc['from'] as String).toList();
         });
       } catch (e) {
         print('Error fetching pending connections as receiver: $e');
       }
 
       try {
-        // Check if there are pending connections where the current user is the sender (from == _currentUserId)
+        // Fetch pending connections where current user is the sender
         QuerySnapshot snapshot = await _firestore
             .collection('pendingConnections')
             .where('from', isEqualTo: _currentUserId)
@@ -81,14 +82,15 @@ class _SearchPageState extends State<SearchPage> {
             .get();
 
         setState(() {
-          _pendingConnections.addAll(snapshot.docs.map((doc) => doc['to'] as String).toList());
+          _pendingConnections
+              .addAll(snapshot.docs.map((doc) => doc['to'] as String).toList());
         });
       } catch (e) {
         print('Error fetching pending connections as sender: $e');
       }
 
       try {
-        // Fetch declined connections for the current user
+        // Fetch declined connections
         QuerySnapshot snapshot = await _firestore
             .collection('pendingConnections')
             .where('to', isEqualTo: _currentUserId)
@@ -96,19 +98,22 @@ class _SearchPageState extends State<SearchPage> {
             .get();
 
         setState(() {
-          _declinedConnections = snapshot.docs.map((doc) => doc['from'] as String).toList();
+          _declinedConnections =
+              snapshot.docs.map((doc) => doc['from'] as String).toList();
         });
       } catch (e) {
         print('Error fetching declined connections: $e');
       }
 
       try {
-        // Fetch accepted connections by checking the connections field in 'users'
-        DocumentSnapshot currentUserDoc = await _firestore.collection('users').doc(_currentUserId).get();
+        // Fetch accepted connections
+        DocumentSnapshot currentUserDoc =
+            await _firestore.collection('users').doc(_currentUserId).get();
         if (currentUserDoc.exists) {
           var connections = currentUserDoc['connections'] as List<dynamic>?;
           setState(() {
-            _acceptedConnections = connections != null ? List<String>.from(connections) : [];
+            _acceptedConnections =
+                connections != null ? List<String>.from(connections) : [];
           });
         }
       } catch (e) {
@@ -187,6 +192,8 @@ class _SearchPageState extends State<SearchPage> {
               child: TextField(
                 onChanged: _filterUsers,
                 decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  prefixIconColor: Colors.grey,
                   hintText: 'Search by name...',
                   hintStyle: const TextStyle(color: Colors.grey),
                   filled: true,
@@ -205,13 +212,17 @@ class _SearchPageState extends State<SearchPage> {
                       itemCount: _filteredUsers.length,
                       itemBuilder: (context, index) {
                         final user = _filteredUsers[index];
-                        bool isPending = _pendingConnections.contains(user['uid']);
-                        bool isDeclined = _declinedConnections.contains(user['uid']);
-                        bool isConnected = _acceptedConnections.contains(user['uid']);
+                        bool isPending =
+                            _pendingConnections.contains(user['uid']);
+                        bool isDeclined =
+                            _declinedConnections.contains(user['uid']);
+                        bool isConnected =
+                            _acceptedConnections.contains(user['uid']);
 
                         return Card(
                           color: Colors.grey[850],
-                          margin: const EdgeInsets.symmetric(vertical: 8.0),
+                          margin: const EdgeInsets.symmetric(
+                              vertical: 8.0, horizontal: 16),
                           child: ListTile(
                             title: Text(
                               '${user['firstName']} ${user['lastName']}',
@@ -221,44 +232,47 @@ class _SearchPageState extends State<SearchPage> {
                               user['email'],
                               style: const TextStyle(color: Colors.white70),
                             ),
-                            trailing: ElevatedButton(
-                              onPressed: isPending
-                                  ? null
-                                  : isDeclined
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: isPending
+                                      ? const Icon(Icons.access_time,
+                                          color: Colors.yellow)
+                                      : isDeclined
+                                          ? const Icon(Icons.block,
+                                              color: Colors.grey)
+                                          : isConnected
+                                              ? const Icon(Icons.check_circle,
+                                                  color: Colors.green)
+                                              : const Icon(
+                                                  Icons.add_circle_outlined,
+                                                  color: Colors.white),
+                                  onPressed: isPending
                                       ? null
-                                      : isConnected
-                                          ? () {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(SnackBar(content: Text('You are already connected!')));
-                                            }
-                                          : () {
-                                              _connectUser(user['uid']);
-                                            },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isPending
-                                    ? Colors.yellow
-                                    : (isDeclined
-                                        ? Colors.grey
-                                        : (isConnected ? Colors.green : const Color.fromRGBO(0, 153, 114, 1))),
-                              ),
-                              child: Text(
-                                isPending
-                                    ? 'Awaiting'
-                                    : isDeclined
-                                        ? 'Cooldown'
-                                        : isConnected
-                                            ? 'Connected'
-                                            : 'Connect',
-                                style: TextStyle(
-                                  color: isPending ? Colors.black : (isDeclined ? Colors.grey : Colors.white),
+                                      : isDeclined
+                                          ? null
+                                          : isConnected
+                                              ? null
+                                              : () {
+                                                  _connectUser(user['uid']);
+                                                },
+                                  tooltip: isPending
+                                      ? 'Connection Pending'
+                                      : isDeclined
+                                          ? 'Connection Declined'
+                                          : isConnected
+                                              ? 'Already Connected'
+                                              : 'Send Connection Request',
                                 ),
-                              ),
+                              ],
                             ),
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => ProfileDetailsPage(user: user),
+                                  builder: (context) =>
+                                      ProfileDetailsPage(user: user),
                                 ),
                               );
                             },
@@ -300,7 +314,10 @@ class ProfileDetailsPage extends StatelessWidget {
           children: [
             Text(
               '${user['firstName']} ${user['lastName']}',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
             ),
             const SizedBox(height: 8),
             _buildProfileField('Education', user['education']),
@@ -321,7 +338,8 @@ class ProfileDetailsPage extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
