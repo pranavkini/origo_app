@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "83815879848",
+    "project_id": "madorigo-firebase",
+    "storage_bucket": "madorigo-firebase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:83815879848:android:d12bbbbc270a7b3e435e9d",
+        "android_client_info": {
+          "package_name": "com.example.origo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARnlpSPWaf8_I0ExBV3KsrjtZxMggPXnY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
