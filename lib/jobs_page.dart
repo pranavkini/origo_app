@@ -8,8 +8,10 @@ class AppColors {
   static const textLight = Color(0xFFFFFFFF); // White text for readability
   static const textDim = Color(0xFFBDBDBD); // Dim text for hints
   static const errorRed = Color(0xFFEF5350); // Soft red for error messages
-  static final borderGray = Color(0xFF2E7D32).withOpacity(0.2); // Subtle green border
-  static final hintGray = Color(0xFFFFFFFF).withOpacity(0.38); // Hint text color
+  static final borderGray =
+      Color(0xFF2E7D32).withOpacity(0.2); // Subtle green border
+  static final hintGray =
+      Color(0xFFFFFFFF).withOpacity(0.38); // Hint text color
 }
 
 class JobsPage extends StatefulWidget {
@@ -17,13 +19,21 @@ class JobsPage extends StatefulWidget {
   _JobsPageState createState() => _JobsPageState();
 }
 
-class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin {
+class _JobsPageState extends State<JobsPage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _jobTitleController = TextEditingController();
-  final TextEditingController _jobDescriptionController = TextEditingController();
+  final TextEditingController _jobDescriptionController =
+      TextEditingController();
   final TextEditingController _jobLocationController = TextEditingController();
   final TextEditingController _jobSalaryController = TextEditingController();
   final String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-  final List<String> categories = ['IT', 'Sales', 'Marketing', 'Engineering', 'Government'];
+  final List<String> categories = [
+    'IT',
+    'Sales',
+    'Marketing',
+    'Engineering',
+    'Government'
+  ];
   String selectedCategory = 'IT';
   List<Map<String, dynamic>> jobListings = [];
   late TabController _tabController;
@@ -36,10 +46,14 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
   }
 
   Future<void> _fetchJobs() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('jobs').get();
+    QuerySnapshot snapshot =
+        await FirebaseFirestore.instance.collection('jobs').get();
     setState(() {
       jobListings = snapshot.docs.map((doc) {
-        Map<String, dynamic> jobData = {'id': doc.id, ...doc.data() as Map<String, dynamic>};
+        Map<String, dynamic> jobData = {
+          'id': doc.id,
+          ...doc.data() as Map<String, dynamic>
+        };
         jobData['hasApplied'] = (jobData['applicants'] ?? []).contains(userId);
         jobData['applicantCount'] = (jobData['applicants'] ?? []).length;
         return jobData;
@@ -48,7 +62,8 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
   }
 
   Future<void> _addJob() async {
-    if (_jobTitleController.text.isNotEmpty && _jobDescriptionController.text.isNotEmpty) {
+    if (_jobTitleController.text.isNotEmpty &&
+        _jobDescriptionController.text.isNotEmpty) {
       await FirebaseFirestore.instance.collection('jobs').add({
         'title': _jobTitleController.text,
         'description': _jobDescriptionController.text,
@@ -85,7 +100,8 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
           builder: (context, setState) {
             return AlertDialog(
               backgroundColor: AppColors.darkBackground,
-              title: Text('Add New Job', style: TextStyle(color: AppColors.textLight)),
+              title: Text('Add New Job',
+                  style: TextStyle(color: AppColors.textLight)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -139,7 +155,8 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
                           tempSelectedCategory = newValue!;
                         });
                       },
-                      items: categories.map<DropdownMenuItem<String>>((String value) {
+                      items: categories
+                          .map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
                           child: Text(value),
@@ -152,7 +169,8 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Cancel', style: TextStyle(color: AppColors.textDim)),
+                  child: Text('Cancel',
+                      style: TextStyle(color: AppColors.textDim)),
                 ),
                 TextButton(
                   onPressed: () {
@@ -161,7 +179,8 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
                     });
                     _addJob();
                   },
-                  child: Text('Add Job', style: TextStyle(color: AppColors.primaryGreen)),
+                  child: Text('Add Job',
+                      style: TextStyle(color: AppColors.primaryGreen)),
                 ),
               ],
             );
@@ -171,13 +190,13 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: Text("Job Openings", style: TextStyle(color: AppColors.textLight)),
+        title:
+            Text("Job Openings", style: TextStyle(color: AppColors.textLight)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         bottom: TabBar(
@@ -192,16 +211,19 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
       body: TabBarView(
         controller: _tabController,
         children: categories.map((category) {
-          List<Map<String, dynamic>> filteredJobs = jobListings.where((job) => job['category'] == category).toList();
+          List<Map<String, dynamic>> filteredJobs =
+              jobListings.where((job) => job['category'] == category).toList();
           return filteredJobs.isNotEmpty
               ? ListView.builder(
-            itemCount: filteredJobs.length,
-            itemBuilder: (context, index) {
-              final job = filteredJobs[index];
-              return _buildJobCard(job);
-            },
-          )
-              : Center(child: Text("No jobs in $category", style: TextStyle(color: AppColors.textDim)));
+                  itemCount: filteredJobs.length,
+                  itemBuilder: (context, index) {
+                    final job = filteredJobs[index];
+                    return _buildJobCard(job);
+                  },
+                )
+              : Center(
+                  child: Text("No jobs in $category",
+                      style: TextStyle(color: AppColors.textDim)));
         }).toList(),
       ),
       floatingActionButton: FloatingActionButton(
@@ -229,16 +251,24 @@ class _JobsPageState extends State<JobsPage> with SingleTickerProviderStateMixin
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(job['title'] ?? 'Title', style: TextStyle(color: AppColors.textLight)),
+              Text(job['title'] ?? 'Title',
+                  style: TextStyle(color: AppColors.textLight)),
               SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextButton(
-                    onPressed: job['hasApplied'] ? null : () => _applyForJob(job['id']),
-                    child: Text(job['hasApplied'] ? 'Applied' : 'Apply', style: TextStyle(color: AppColors.primaryGreen)),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12))),
+                    onPressed: job['hasApplied']
+                        ? null
+                        : () => _applyForJob(job['id']),
+                    child: Text(job['hasApplied'] ? 'Applied' : 'Apply',
+                        style: TextStyle(color: AppColors.primaryGreen)),
                   ),
-                  Text('${job['applicantCount']} Applicants', style: TextStyle(color: AppColors.textDim)),
+                  Text('${job['applicantCount']} Applicants',
+                      style: TextStyle(color: AppColors.textDim)),
                 ],
               ),
             ],
@@ -269,7 +299,10 @@ class JobDetailsPage extends StatelessWidget {
           children: [
             Text(
               job['title'] ?? 'Job Title',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textLight),
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textLight),
             ),
             SizedBox(height: 16),
             Text(
@@ -287,7 +320,8 @@ class JobDetailsPage extends StatelessWidget {
               style: TextStyle(fontSize: 16, color: AppColors.textDim),
             ),
             SizedBox(height: 16),
-            Text('${job['applicantCount']} Applicants', style: TextStyle(fontSize: 16, color: AppColors.textDim)),
+            Text('${job['applicantCount']} Applicants',
+                style: TextStyle(fontSize: 16, color: AppColors.textDim)),
           ],
         ),
       ),
